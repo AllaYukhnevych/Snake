@@ -1,8 +1,8 @@
 ﻿#include <iostream>
 #include <SDL.h>
-#include <time.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 #include <vector>
 #include <ctime>
 
@@ -14,6 +14,7 @@ const int SNAKE_DIRECTION_RIGHT =1;
 const int SNAKE_DIRECTION_DOWN =2;
 const int SNAKE_DIRECTION_LEFT =3;
 const int FIELD_CELL_TYPE_APPLE = -1;
+const int FIELD_CELL_TYPE_WALL = - 2;
 bool game_ower = false;
 
 //створюємо вікно
@@ -22,8 +23,10 @@ SDL_Renderer* gRender = NULL;
 SDL_Texture* none_texture = NULL;
 SDL_Texture* snake_texture = NULL;
 SDL_Texture* apple_texture = NULL;
+SDL_Texture* wall_texture = NULL;
 SDL_Rect none;
 
+Mix_Music* music_game_ower = NULL;
 //кількість клітинок
 const int field_size_x = 35;
 const int field_size_y = 25;
@@ -61,7 +64,20 @@ void clear_field()
         field[snake_position_y][snake_position_x - i] = snake_lenght - i;
     }
 
-    add_apple();
+    //малювання стіни
+    for (int i = 0; i < field_size_x; i++)
+    {
+        field[0][i] = FIELD_CELL_TYPE_WALL;
+        field[field_size_y - 1][i] = FIELD_CELL_TYPE_WALL;
+    }
+
+    for (int i = 0; i < field_size_y-1; i++)
+    {
+        field[i][0] = FIELD_CELL_TYPE_WALL;
+        field[i][field_size_x-1] = FIELD_CELL_TYPE_WALL;
+    }
+
+  add_apple();
 }
 
 
@@ -90,6 +106,12 @@ int init() {
     int flags = IMG_INIT_PNG;
     if (!(IMG_Init(flags) & flags)) {
         std::cout << "Can't init image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+    {
+        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
         ok = false;
     }
 
@@ -139,10 +161,31 @@ bool load() {
         ok = false;
     }
 
+    SDL_Surface* wall_surf = NULL;
+    wall_surf = IMG_Load("wall.png");
+    if (wall_surf == NULL) {
+        std::cout << "Can't load image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    wall_texture = SDL_CreateTextureFromSurface(gRender, wall_surf);
+    if (wall_texture == NULL) {
+        std::cout << "Can't create texture from surface: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
     SDL_FreeSurface(temp_surf);
     SDL_FreeSurface(snake_surf);
     SDL_FreeSurface(apple_surf);
+    SDL_FreeSurface(wall_surf);
   
+    //завантаження музики
+    music_game_ower = Mix_LoadMUS("I Want to Break Free.wav");
+    if (music_game_ower == NULL)
+    {
+        printf("Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError());
+        ok = false;
+    }
+
     return ok;
 }
 
@@ -173,7 +216,11 @@ void draw_field()
                 none.y = j * cell_size;
                 SDL_RenderCopy(gRender, apple_texture, NULL, &none);
                 break;
-
+            case FIELD_CELL_TYPE_WALL:
+                none.x = i * cell_size;
+                none.y = j * cell_size;
+                SDL_RenderCopy(gRender, wall_texture, NULL, &none);
+                break;
             default://змійка
                 none.x = i * cell_size;
                 none.y = j * cell_size;
@@ -184,6 +231,20 @@ void draw_field()
     }
 }
 
+void grow_snake()
+{
+    for (int j = 0; j < field_size_y; j++)
+    {
+        for (int i = 0; i < field_size_x; i++)
+        {
+            if (field[j][i] > FIELD_CELL_TYPE_NONE)
+            {
+                field[j][i]++;
+            }
+        }
+    }
+
+}
 //переміщення змійки
 void make_move()
 {
@@ -225,10 +286,15 @@ void make_move()
         {
         case FIELD_CELL_TYPE_APPLE:
             snake_lenght++;
+            grow_snake();
             add_apple();
             break;
         default:
+            
             game_ower = true;
+            Mix_PlayMusic(music_game_ower, -1);
+            SDL_Delay(3000);
+           
         }
     }
 
@@ -248,29 +314,10 @@ void make_move()
 
 }
 
-void handle_keyboard(SDL_Event e)
-{
-    if (e.type == SDL_KEYDOWN) {
-        if (e.key.keysym.sym == SDLK_UP) {
-            snake_direction = SNAKE_DIRECTION_UP;
-        }
-        if (e.key.keysym.sym == SDLK_DOWN) {
-            snake_direction = SNAKE_DIRECTION_DOWN;
-        }
-        if (e.key.keysym.sym == SDLK_RIGHT) {
-            snake_direction = SNAKE_DIRECTION_RIGHT;
-        }
-        if (e.key.keysym.sym == SDLK_LEFT) {
-            snake_direction = SNAKE_DIRECTION_LEFT;
-        }
-    }
-}
 
 //визначення клітинки дл яблука
 int get_random_empty_cell()
 {
-
-    srand(time(NULL));
     //лічильник пустих клітинок
     int empty_cell_count = 0;
     for (int j = 0; j < field_size_y; j++)
@@ -286,18 +333,19 @@ int get_random_empty_cell()
     }
 
     //індекс випадкової клітинки. Випадкове число від суми пустих клітинок
-    int target_empty_cell_index = std::rand() % empty_cell_count;
+    int target_empty_cell_index = rand() % empty_cell_count;
+    int empty_cell_index = 0;
     for (int j = 0; j < field_size_y; j++)
     {
         for (int i = 0; i < field_size_x; i++)
         {
             if (field[j][i] == FIELD_CELL_TYPE_NONE)
             {
-                if (target_empty_cell_index == target_empty_cell_index)
+                if (empty_cell_index == target_empty_cell_index)
                 {
-                    return j * field_size_x * i;
+                    return j * field_size_x + i;
                 }
-                target_empty_cell_index++;
+                empty_cell_index++;
             }
         }
     }
@@ -307,12 +355,11 @@ int get_random_empty_cell()
 //додавання яблука
 void add_apple()
 {
-    srand(time(NULL));
     //розиція яблука
     int apple_pos = get_random_empty_cell();
 
     if (apple_pos != -1) {
-       field[apple_pos / field_size_x][apple_pos % field_size_x] = FIELD_CELL_TYPE_APPLE;
+       field[apple_pos / field_size_x][apple_pos / field_size_x] = FIELD_CELL_TYPE_APPLE;
     }
 }
 
@@ -333,11 +380,17 @@ void quit() {
     SDL_DestroyTexture(apple_texture);
     apple_texture = NULL;
 
+    SDL_DestroyTexture(wall_texture);
+    wall_texture = NULL;
+
     SDL_Quit();
     IMG_Quit();
 }
 
 int main(int argc, char** args) {
+
+    srand(time(NULL));
+    std::vector<int> snake_direction_queue;
 
     if (init() == 1) {
         return 1;
@@ -352,22 +405,54 @@ int main(int argc, char** args) {
         //закриття вікна
         bool close = true;
         SDL_Event e;
-
+        int new_snake_direction = snake_direction;
         while (close) {
+           
             while (SDL_PollEvent(&e) != NULL) {
                 if (e.type == SDL_QUIT) {
                     close = false;
                 }
+
+                int snake_direction_last = snake_direction_queue.empty() ? snake_direction : snake_direction_queue.at(0);
+                switch (e.key.keysym.sym) {
+                case SDLK_UP:
+                    if (snake_direction_last != SNAKE_DIRECTION_DOWN)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_UP;
+                    }
+                    break;
+                case SDLK_DOWN:
+                    if (snake_direction_last != SNAKE_DIRECTION_UP)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_DOWN;
+                    }
+                    break;
+                case SDLK_RIGHT:
+                    if (snake_direction_last != SNAKE_DIRECTION_LEFT)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_RIGHT;
+                    }
+                    break;
+                case SDLK_LEFT:
+                    if (snake_direction_last != SNAKE_DIRECTION_RIGHT)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_LEFT;
+                    }
+                    break;
+                }
             }
+            snake_direction = new_snake_direction;
+            
+
             if (game_ower)
             {
                 quit();
         }
+            
+
             make_move();
-            add_apple();
             //замальовка фона
             draw_field();
-            handle_keyboard(e);
             //швидкість змійки
             SDL_Delay(100);
         }
