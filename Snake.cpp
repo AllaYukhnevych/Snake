@@ -1,197 +1,464 @@
-﻿
-
-#include <iostream>
-#include <windows.h>
+﻿#include <iostream>
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include <SDL_mixer.h>
+#include <vector>
 #include <ctime>
-#include <conio.h>
-using namespace std;
 
-void main()
+
+
+const int FIELD_CELL_TYPE_NONE = 0;
+const int SNAKE_DIRECTION_UP = 0;
+const int SNAKE_DIRECTION_RIGHT = 1;
+const int SNAKE_DIRECTION_DOWN = 2;
+const int SNAKE_DIRECTION_LEFT = 3;
+const int FIELD_CELL_TYPE_APPLE = -1;
+const int FIELD_CELL_TYPE_WALL = -2;
+bool game_ower = false;
+
+//створюємо вікно
+SDL_Window* window = NULL;
+SDL_Renderer* gRender = NULL;
+SDL_Texture* none_texture = NULL;
+SDL_Texture* snake_texture = NULL;
+SDL_Texture* apple_texture = NULL;
+SDL_Texture* wall_texture = NULL;
+SDL_Rect none;
+
+Mix_Music* music_game_ower = NULL;
+//кількість клітинок
+const int field_size_x = 35;
+const int field_size_y = 25;
+//розмір клітинки
+const int cell_size = 32;
+
+//позиція змійки
+int snake_position_x = field_size_x / 2;
+int snake_position_y = field_size_y / 2;
+
+//довжина змійки
+int snake_lenght = 4;
+//напрямок змійки
+int snake_direction = SNAKE_DIRECTION_RIGHT;
+
+const int SCREEN_WIDTH = field_size_x * cell_size;
+const int SCREEN_HEIGHT = field_size_y * cell_size;
+
+//інформація, що міститься в клітинці
+int field[field_size_y][field_size_x];
+void add_apple();
+
+//заповнення вікна
+void clear_field()
 {
-	srand(time(0)); // запуск генератора случайных чисел
-	rand(); // холостой ход генератора случаный чисел
-	system("mode con cols=51 lines=31"); // установка размеров окна консоли
-	MoveWindow(GetConsoleWindow(), 50, 50, 2000, 2000, true); // установка стартовой позиции окна консоли (50 и 50 - это пиксели
-	// относительно верхнего левого угла монитора
-	const int width = 50, height = 30; // размеры поля, по которому бегает змейка
-	const int max_length = 50; // установка максимальной длины "змейки"
-	int array_X[max_length]; // массив,хранящий абсциссы звеньев "змейки"
-	int array_Y[max_length]; // массив, хранящий ординаты звеньев "змейки"
-	int length = 1; // переменная длины "змейки"
-	array_X[0] = width / 2; // установка стартовой абсциссы "змейки"
-	array_Y[0] = height / 2; // установка стартовой ординаты "змейки"
-	int dx = 1, dy = 0; // создание смещений по осям для движения "змейки"
-	int X_apple; // абсцисса "яблока"
-	int Y_apple; // ордината "яблока"
-	do // цикл ставит координаты яблока случанйм образом - но чтобы они не совпадали со "змейкой"
-	{
-		X_apple = rand() % (width - 2) + 1;
-		Y_apple = rand() % (height - 2) + 1;
-	} while (X_apple != array_X[length - 1] && Y_apple != array_Y[length - 1]);
+    for (int j = 0; j < field_size_y; j++) {
+        for (int i = 0; i < field_size_x; i++) {
+            field[j][i] = FIELD_CELL_TYPE_NONE;
+        }
+    }
 
-	int sleep_time = 100; // переменная частоты кадров 
+    //положення змійки
+    for (int i = 0; i < snake_lenght; i++)
+    {
+        field[snake_position_y][snake_position_x - i] = snake_lenght - i;
+    }
 
-	char snake = '*'; // символ для отображения тела "змейки"
-	char apple = 'o'; // символ для отображения "яблока"
-	char head = 1; // символ для отображения головы "змейки"
-	COORD c; // объект для хранения координат
-	HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE); // создание хендла потока вывода
-	CONSOLE_CURSOR_INFO cci = { sizeof(cci), false }; // создание параметров на отображение курсора
-	SetConsoleCursorInfo(h, &cci); //связывание параметров и хендла
+    //малювання стіни
+    for (int i = 0; i < field_size_x; i++)
+    {
+        field[0][i] = FIELD_CELL_TYPE_WALL;
+        field[field_size_y - 1][i] = FIELD_CELL_TYPE_WALL;
+    }
 
-	SetConsoleTextAttribute(h, 4); // установка цвета, которым рисуется рамка поля
-	for (int y = 0; y < height; y++) // стандартный двойной цикл на отрисовку рамки
-	{
-		for (int x = 0; x < width; x++)
-		{
-			char s;
-			if (x == 0 && y == 0) // в верхнем левом углу поля - символ соответствующего угла
-				s = 218;
-			else if (x == 0 && y == height - 1) // нижний левый угол
-				s = 192;
-			else if (y == 0 && x == width - 1) // верхний правый угол
-				s = 191;
-			else if (y == height - 1 && x == width - 1) // нижний правый угол
-				s = 217;
-			else if (y == 0 || y == height - 1) // верхняя и нижняя граница поля
-				s = 196;
-			else if (x == 0 || x == width - 1) // левая и правая граница поля
-				s = 179;
-			else s = ' '; // во всех остальных случаях должен быть просто пробел (означает пустую область поля)
-			putchar(s); // выводим символ
-		}
-		cout << endl;
-	}
+    for (int i = 0; i < field_size_y - 1; i++)
+    {
+        field[i][0] = FIELD_CELL_TYPE_WALL;
+        field[i][field_size_x - 1] = FIELD_CELL_TYPE_WALL;
+    }
 
-	c.X = X_apple; // связываем объект координат с позициями "яблока"
-	c.Y = Y_apple;
-	SetConsoleCursorPosition(h, c); // отправляем курсор на позицию "яблока"
-	SetConsoleTextAttribute(h, 12); // устанавливаем красный цвет для отрисовки "яблока"
-	putchar(apple); // отображаем символ "яблока"
-
-	c.X = array_X[0]; // связываем объект координат со стартовой позицией "змейки"
-	c.Y = array_Y[0];
-	SetConsoleCursorPosition(h, c); // отправляем курсор на позицию головы "змейки"
-	SetConsoleTextAttribute(h, 10); // устанавливаем зеленый цвет для отрисовки "змейки"
-	putchar(head); // отображаем символ головы "змейки"
-
-	bool flag = true; // переменная для управления ходом цикла
-	do // собственно цикл игры
-	{
-		Sleep(sleep_time); // задержка потока программы на заданный ранее интервал
-
-		if (_kbhit()) // проверяем, была ли нажата какая-либо клавиша и запускаем её обработку в случае ИСТИНЫ
-		{
-			int k = _getch(); // считываем код клавиши из буфера
-			if (k == 0 || k == 224) // если первый код - вспомогательный, считываем второй код
-				k = _getch();
-			switch (k) // пропускаем код нажатой клавиши внутрь оператора выбора
-			{
-			case 80: // если была нажата клавиша вниз
-				dy = 1; // то приращение по оси ординат будет положительным
-				dx = 0; // по оси абсцисс приращение нулевое
-				break;
-			case 72: // если вверх
-				dy = -1; // аналогично согласно геометрической логике
-				dx = 0;
-				break;
-			case 75: // если влево
-				dy = 0;
-				dx = -1;
-				break;
-			case 77: // если вправо
-				dy = 0;
-				dx = 1;
-				break;
-			case 27: // если была нажата клавиша ESC
-				flag = false; // устанавливаем флажок на ЛОЖЬ, чтоб закончить показ движения
-				break;
-			}
-		}
-
-		int X = array_X[length - 1] + dx; // определяем значение абсциссы головы "змейки" после смещения
-		int Y = array_Y[length - 1] + dy; // то же самое для ординаты
-		if (X == 0 || X == width - 1 || Y == 0 || Y == height - 1) // проверка на достижение границ поля
-		{
-			flag = false; // пока что - просто установка управляющей переменной цикла
-		}
-		else if (X == X_apple && Y == Y_apple) // проверка на достижение "яблока"
-		{
-			c.X = array_X[length - 1]; // установка в объект координат позиции головы "змейки"
-			c.Y = array_Y[length - 1];
-			SetConsoleCursorPosition(h, c); // установка курсора в эту позицию
-			putchar(snake); // отображение символа тела "змейки"
-
-			length++; // увеличение длины "змейки" (яблоко проглочено)
-			c.X = array_X[length - 1] = X; // установка в массивы позиции нового звена "змейки"
-			c.Y = array_Y[length - 1] = Y;
-			SetConsoleCursorPosition(h, c); // установка туда курсора
-			putchar(head); // и отображение там символа головы "змейки"
-
-			if (length == max_length) // проверка, достигла ли длина "змейки" своего максимального значения
-			{
-				break; // пока что - просто прерываем цикл 
-			}
-
-			int i; // переменная для подсчета количества звеньев "змейки", не совпадающих с позицией "яблока"
-			do
-			{
-				X_apple = rand() % (width - 2) + 1; // установка новых координат "яблока"
-				Y_apple = rand() % (height - 2) + 1;
-				i = 0; // обнуление числа несовпадающих координат
-				for (; i < length; i++) // запуск цикла на сверку совпадений
-					if (X_apple == array_X[i] && Y_apple == array_Y[i]) // если совпадение найдено
-						break; // то прерываем цикл for
-			} while (i < length); // поиск новых координат продолжается, пока число несовпадающих координат меньше длины "змейки"
-
-			c.X = X_apple; // установка в объект координат новой корректной позиции "яблока"
-			c.Y = Y_apple;
-			SetConsoleCursorPosition(h, c); // отправка туда курсора
-			SetConsoleTextAttribute(h, 12); // установка цвета в красный
-			putchar(apple); // отображение символа "яблока"
-			SetConsoleTextAttribute(h, 10); // обратная установка цвета в зеленый - для дальнейшего отображения "змейки"
-		}
-		else // случай, когда голова "змейки" оказалась на новой пустой позиции
-		{
-			int i = 1; // переменная на количество звеньев, не совпадающих с новой позицией - кроме хвоста "змейки"
-			for (; i < length; i++)
-				if (X == array_X[i] && Y == array_Y[i]) // если совпадение найдено в цикле - прерываемся
-					break;
-			if (i < length) // если число несовпадающих звеньев меньше длины "змейки" - то прерываем основной цикл игры
-			{
-				break;
-			}
-			else // а иначе запускаем обработку сдвига "змейки"
-			{
-				c.X = array_X[0]; // устанавливаем в объект координат позицию хвоста "змейки"
-				c.Y = array_Y[0];
-				SetConsoleCursorPosition(h, c); // двигаем туда курсор
-				putchar(' '); // и отображаем пробел (затирка хвоста)
-
-				if (length > 1) // если длина змейки больше 
-				{
-					c.X = array_X[length - 1]; // устанавливаем в объект координат предыдущую позицию головы "змейки"
-					c.Y = array_Y[length - 1];
-					SetConsoleCursorPosition(h, c);  // двигаем туда курсор
-					putchar(snake); // выводим символ тела "змейки"
-				}
-
-				for (int i = 0; i < length - 1; i++) // запускаем цикл свдига координат звеньев "змейки"
-				{
-					array_X[i] = array_X[i + 1]; // обрабатываем все звенья - кроме последнего
-					array_Y[i] = array_Y[i + 1];
-				}
-
-				c.X = array_X[length - 1] = X; // устанавливаем новую позицию головы "змейки"
-				c.Y = array_Y[length - 1] = Y;
-				SetConsoleCursorPosition(h, c); // двигаем туда курсора
-				putchar(head); // отображаем символ головы "змейки"
-			}
-		}
-	} while (flag); // выходим из цикла, если сброшена управляющая переменная
-	system("cls"); // очищаем экран
-	cout << "GAME OVER\n"; // выводим сообщение о конце игры
-	system("pause");
+    add_apple();
 }
 
 
+
+
+int init() {
+    bool ok = true;
+
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        return 1;
+    }
+
+    window = SDL_CreateWindow("Snake", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+    if (window == NULL) {
+        return 1;
+    }
+
+    gRender = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (gRender == NULL) {
+        std::cout << "Can't create renderer: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
+    SDL_SetRenderDrawColor(gRender, 200, 249, 255, 0xFF);
+
+    int flags = IMG_INIT_PNG;
+    if (!(IMG_Init(flags) & flags)) {
+        std::cout << "Can't init image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+    {
+        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+        ok = false;
+    }
+
+    return 0;
+}
+
+
+//завантаження зображення
+bool load() {
+    bool ok = true;
+    SDL_Surface* temp_surf = NULL;
+    temp_surf = IMG_Load("none.png");
+    if (temp_surf == NULL) {
+        std::cout << "Can't load image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    none_texture = SDL_CreateTextureFromSurface(gRender, temp_surf);
+    if (none_texture == NULL) {
+        std::cout << "Can't create texture from surface: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
+
+    SDL_Surface* snake_surf = NULL;
+    snake_surf = IMG_Load("snake.png");
+    if (snake_surf == NULL) {
+        std::cout << "Can't load image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    snake_texture = SDL_CreateTextureFromSurface(gRender, snake_surf);
+    if (snake_texture == NULL) {
+        std::cout << "Can't create texture from surface: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
+
+    SDL_Surface* apple_surf = NULL;
+    apple_surf = IMG_Load("apple.png");
+    if (apple_surf == NULL) {
+        std::cout << "Can't load image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    apple_texture = SDL_CreateTextureFromSurface(gRender, apple_surf);
+    if (apple_texture == NULL) {
+        std::cout << "Can't create texture from surface: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
+
+    SDL_Surface* wall_surf = NULL;
+    wall_surf = IMG_Load("wall.png");
+    if (wall_surf == NULL) {
+        std::cout << "Can't load image: " << IMG_GetError() << std::endl;
+        ok = false;
+    }
+
+    wall_texture = SDL_CreateTextureFromSurface(gRender, wall_surf);
+    if (wall_texture == NULL) {
+        std::cout << "Can't create texture from surface: " << SDL_GetError() << std::endl;
+        ok = false;
+    }
+    SDL_FreeSurface(temp_surf);
+    SDL_FreeSurface(snake_surf);
+    SDL_FreeSurface(apple_surf);
+    SDL_FreeSurface(wall_surf);
+
+    //завантаження музики
+    music_game_ower = Mix_LoadMUS("game_over.wav");
+    if (music_game_ower == NULL)
+    {
+        printf("Failed to load beat music! SDL_mixer Error: %s\n", Mix_GetError());
+        ok = false;
+    }
+
+    return ok;
+}
+
+void draw_field()
+{
+    //замальовка фона
+    none.x = 0;
+    none.y = 0;
+    none.w = cell_size;
+    none.h = cell_size;
+
+    SDL_RenderPresent(gRender);
+    SDL_RenderClear(gRender);
+
+    //вивід на екран
+    for (int j = 0; j < field_size_y; j++) {
+        for (int i = 0; i < field_size_x; i++) {
+            switch (field[j][i])
+            {
+            case FIELD_CELL_TYPE_NONE:
+                none.x = i * cell_size;
+                none.y = j * cell_size;
+                SDL_RenderCopy(gRender, none_texture, NULL, &none);
+                break;
+
+            case FIELD_CELL_TYPE_APPLE:
+                none.x = i * cell_size;
+                none.y = j * cell_size;
+                SDL_RenderCopy(gRender, apple_texture, NULL, &none);
+                break;
+            case FIELD_CELL_TYPE_WALL:
+                none.x = i * cell_size;
+                none.y = j * cell_size;
+                SDL_RenderCopy(gRender, wall_texture, NULL, &none);
+                break;
+            default://змійка
+                none.x = i * cell_size;
+                none.y = j * cell_size;
+                SDL_RenderCopy(gRender, snake_texture, NULL, &none);
+
+            }
+        }
+    }
+}
+
+void grow_snake()
+{
+    for (int j = 0; j < field_size_y; j++)
+    {
+        for (int i = 0; i < field_size_x; i++)
+        {
+            if (field[j][i] > FIELD_CELL_TYPE_NONE)
+            {
+                field[j][i]++;
+            }
+        }
+    }
+
+}
+//переміщення змійки
+void make_move()
+{
+    switch (snake_direction)
+    {
+    case SNAKE_DIRECTION_UP:
+        snake_position_y--;
+        if (snake_position_y < 0)
+        {
+            snake_position_y = field_size_y - 1;
+        }
+        break;
+    case SNAKE_DIRECTION_RIGHT:
+        snake_position_x++;
+        if (snake_position_x > field_size_x - 1)
+        {
+            snake_position_x = 0;
+        }
+        break;
+    case SNAKE_DIRECTION_LEFT:
+        snake_position_x--;
+        if (snake_position_x < 0)
+        {
+            snake_position_x = field_size_x - 1;
+        }
+        break;
+    case SNAKE_DIRECTION_DOWN:
+        snake_position_y++;
+        if (snake_position_y > field_size_y - 1)
+        {
+            snake_position_y = 0;
+        }
+        break;
+    }
+
+    if (field[snake_position_y][snake_position_x] != FIELD_CELL_TYPE_NONE)
+    {
+        switch (field[snake_position_y][snake_position_x])
+        {
+        case FIELD_CELL_TYPE_APPLE:
+            snake_lenght++;
+            grow_snake();
+            add_apple();
+            break;
+        default:
+
+            game_ower = true;
+            Mix_PlayMusic(music_game_ower, -1);
+            SDL_Delay(3000);
+
+        }
+    }
+
+    //голова змійки
+    field[snake_position_y][snake_position_x] = snake_lenght + 1;
+
+    for (int j = 0; j < field_size_y; j++)
+    {
+        for (int i = 0; i < field_size_x; i++)
+        {
+            if (field[j][i] > FIELD_CELL_TYPE_NONE)
+            {
+                field[j][i]--;
+            }
+        }
+    }
+
+}
+
+
+//визначення клітинки дл яблука
+int get_random_empty_cell()
+{
+    //лічильник пустих клітинок
+    int empty_cell_count = 0;
+    for (int j = 0; j < field_size_y; j++)
+    {
+        for (int i = 0; i < field_size_x; i++)
+        {
+            if (field[j][i] == FIELD_CELL_TYPE_NONE)
+            {
+                //якщо клітинка пуста, то сумується
+                empty_cell_count++;
+            }
+        }
+    }
+
+    //індекс випадкової клітинки. Випадкове число від суми пустих клітинок
+    int target_empty_cell_index = rand() % empty_cell_count;
+    int empty_cell_index = 0;
+    for (int j = 0; j < field_size_y; j++)
+    {
+        for (int i = 0; i < field_size_x; i++)
+        {
+            if (field[j][i] == FIELD_CELL_TYPE_NONE)
+            {
+                if (empty_cell_index == target_empty_cell_index)
+                {
+                    return j * field_size_x + i;
+                }
+                empty_cell_index++;
+            }
+        }
+    }
+    return -1;
+}
+
+//додавання яблука
+void add_apple()
+{
+    //розиція яблука
+    int apple_pos = get_random_empty_cell();
+
+    if (apple_pos != -1) {
+        field[apple_pos / field_size_x][apple_pos / field_size_x] = FIELD_CELL_TYPE_APPLE;
+    }
+}
+
+
+
+void quit() {
+
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(gRender);
+    gRender = NULL;
+
+    SDL_DestroyTexture(none_texture);
+    none_texture = NULL;
+
+    SDL_DestroyTexture(snake_texture);
+    snake_texture = NULL;
+
+    SDL_DestroyTexture(apple_texture);
+    apple_texture = NULL;
+
+    SDL_DestroyTexture(wall_texture);
+    wall_texture = NULL;
+
+    SDL_Quit();
+    IMG_Quit();
+}
+
+int main(int argc, char** args) {
+
+    srand(time(NULL));
+    std::vector<int> snake_direction_queue;
+
+    if (init() == 1) {
+        return 1;
+    }
+    if (!load()) {
+        quit();
+        return 1;
+    }
+    //чисте поле
+    clear_field();
+
+    //закриття вікна
+    bool close = true;
+    SDL_Event e;
+    int new_snake_direction = snake_direction;
+    while (close) {
+
+        while (SDL_PollEvent(&e) != NULL) {
+            if (e.type == SDL_QUIT) {
+                close = false;
+            }
+
+            int snake_direction_last = snake_direction_queue.empty() ? snake_direction : snake_direction_queue.at(0);
+            switch (e.key.keysym.sym) {
+            case SDLK_UP:
+                if (snake_direction_last != SNAKE_DIRECTION_DOWN)
+                {
+                    new_snake_direction = SNAKE_DIRECTION_UP;
+                }
+                break;
+            case SDLK_DOWN:
+                if (snake_direction_last != SNAKE_DIRECTION_UP)
+                {
+                    new_snake_direction = SNAKE_DIRECTION_DOWN;
+                }
+                break;
+            case SDLK_RIGHT:
+                if (snake_direction_last != SNAKE_DIRECTION_LEFT)
+                {
+                    new_snake_direction = SNAKE_DIRECTION_RIGHT;
+                }
+                break;
+            case SDLK_LEFT:
+                if (snake_direction_last != SNAKE_DIRECTION_RIGHT)
+                {
+                    new_snake_direction = SNAKE_DIRECTION_LEFT;
+                }
+                break;
+            }
+        }
+        snake_direction = new_snake_direction;
+
+
+        if (game_ower)
+        {
+            quit();
+        }
+
+
+        make_move();
+        //замальовка фона
+        draw_field();
+        //швидкість змійки
+        SDL_Delay(100);
+    }
+
+
+    quit();
+
+    return 0;
+};
