@@ -13,10 +13,11 @@ Mix_Music* music_game_ower = NULL;
 
 const int field_size_x = 35;
 const int field_size_y = 25;
-//розмір клітинки
+
 const int cell_size = 32;
 
-enum Position {
+enum Position 
+{
     FIELD_CELL_TYPE_NONE = 0,
     SNAKE_DIRECTION_RIGHT = 1, 
     SNAKE_DIRECTION_DOWN = 2,
@@ -33,7 +34,7 @@ int init() {
         return 1;
     }
 
-    window = SDL_CreateWindow("Snakep", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    window = SDL_CreateWindow("Snake", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
         (field_size_x * cell_size), (field_size_y * cell_size), SDL_WINDOW_SHOWN);
     if (window == NULL) {
         return 1;
@@ -44,7 +45,7 @@ int init() {
         std::cout << "Can't create renderer: " << SDL_GetError() << std::endl;
         ok = false;
     }
-    SDL_SetRenderDrawColor(gRender, 200, 249, 255, 0xFF);
+    SDL_SetRenderDrawColor(gRender, 138, 171, 0, 0xFF);
 
     int flags = IMG_INIT_PNG;
     if (!(IMG_Init(flags) & flags)) {
@@ -65,8 +66,8 @@ void quit() {
 
     SDL_DestroyWindow(window);
     SDL_DestroyRenderer(gRender);
-    gRender;
 
     SDL_Quit();
     IMG_Quit();
+    Mix_Quit();
 }
