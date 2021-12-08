@@ -5,16 +5,18 @@
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
 #include <vector>
+#include <string>
 #include <ctime>
 
 SDL_Window* window = NULL;
 SDL_Renderer* gRender = NULL;
 Mix_Music* music_game_ower = NULL;
-
+TTF_Font* gFont = NULL;
+TTF_Font*  gameFont= NULL;
 const int field_size_x = 35;
 const int field_size_y = 25;
-
 const int cell_size = 32;
+const int text_height = 60;
 
 enum Position 
 {
@@ -34,8 +36,8 @@ int init() {
         return 1;
     }
 
-    window = SDL_CreateWindow("Snake", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        (field_size_x * cell_size), (field_size_y * cell_size), SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Snake1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        (field_size_x * cell_size), (field_size_y * cell_size+ text_height), SDL_WINDOW_SHOWN);
     if (window == NULL) {
         return 1;
     }
@@ -52,7 +54,11 @@ int init() {
         std::cout << "Can't init image: " << IMG_GetError() << std::endl;
         ok = false;
     }
-
+    if (TTF_Init() !=0)
+    {
+        printf("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
+        ok = false;
+    }
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
     {
         printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
