@@ -11,11 +11,11 @@ public:
     bool loadFromFile(std::string path);
     void free();
 
+    bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
     void render(int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
 
     int getWidth();
     int getHeight();
-    bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
 private:
     SDL_Texture* mTexture;
 
@@ -108,10 +108,8 @@ int LTexture::getHeight()
 
 bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor)
 {
-    //Get rid of preexisting texture
     free();
 
-    //Render text surface
     SDL_Surface* textSurface = TTF_RenderText_Solid(gFont, textureText.c_str(), textColor);
     if (textSurface == NULL)
     {
@@ -119,7 +117,6 @@ bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor
     }
     else
     {
-        //Create texture from surface pixels
         mTexture = SDL_CreateTextureFromSurface(gRender, textSurface);
         if (mTexture == NULL)
         {
@@ -127,15 +124,12 @@ bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor
         }
         else
         {
-            //Get image dimensions
             mWidth = textSurface->w;
             mHeight = textSurface->h;
         }
 
-        //Get rid of old surface
         SDL_FreeSurface(textSurface);
     }
 
-    //Return success
     return mTexture != NULL;
 }

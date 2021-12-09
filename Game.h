@@ -1,6 +1,5 @@
 #pragma once
 #include "Information_snake.h"
-#include "Menu.h"
 
 class Game {
 
@@ -20,6 +19,8 @@ public:
     void draw_field(Snake& snake);
 
     void draw_score(Snake& snake);
+
+    void draw_round(Snake& snake);
 
     void grow_snake(Snake& snake);
 
@@ -60,9 +61,9 @@ void Game::clear_field(Snake& snake)
 
     for (int i = 0; i < field_size_y - 1; i++)
     {
-        if (i < 5|| field_size_y - i - 1 < 5) {
-        snake.field[i][0] = FIELD_CELL_TYPE_WALL;
-        snake.field[i][field_size_x - 1] = FIELD_CELL_TYPE_WALL;
+        if (i < 5 || field_size_y - i - 1 < 5) {
+            snake.field[i][0] = FIELD_CELL_TYPE_WALL;
+            snake.field[i][field_size_x - 1] = FIELD_CELL_TYPE_WALL;
         }
     }
 
@@ -84,14 +85,12 @@ void Game::draw_field(Snake& snake)
                 apple_texture.render(i * cell_size, j * cell_size+ text_height);
                 break;
             case FIELD_CELL_TYPE_WALL:
-                wall_texture.render(i * cell_size, j * cell_size+ text_height);
+                wall_texture.render(i * cell_size, j * cell_size + text_height);
                 break;
             default://snake
                 if (snake.field[j][i] == snake.snake_lenght+1) {
                    head_texture.render((i * cell_size ), (j * cell_size+ text_height));
-
-                  // tail_texture.render(i * cell_size- cell_size*snake.snake_lenght, j *cell_size + text_height);
-                    double degrees = 0;
+                   double degrees = 0;
                     switch (snake.snake_direction) {
                     case SNAKE_DIRECTION_UP:
                         degrees = 0;
@@ -100,7 +99,6 @@ void Game::draw_field(Snake& snake)
                     case SNAKE_DIRECTION_RIGHT:
                         degrees = 90;
                        head_texture.render((i * cell_size), (j * cell_size+ text_height), NULL, degrees);
-
                         break;
                     case SNAKE_DIRECTION_DOWN:
                         degrees = 180;
@@ -109,8 +107,6 @@ void Game::draw_field(Snake& snake)
                     case SNAKE_DIRECTION_LEFT:
                         degrees = -90;
                         head_texture.render((i * cell_size), (j * cell_size+ text_height), NULL, degrees);
-
-                        //tail_texture.render(i * cell_size , j * cell_size + text_height);
                         break;
                     }
                 }
@@ -134,7 +130,31 @@ void Game::draw_score(Snake& snake)
     text_score.render(950, 20);
 }
    
+void Game::draw_round(Snake& snake)
+{
+    if (snake.score > 7)
+    {
+        for (int i = 9; i < 16; i++)
+        {
+            snake.field[i][16] = FIELD_CELL_TYPE_WALL;
+            snake.field[i][17] = FIELD_CELL_TYPE_WALL;
+            snake.field[i][18] = FIELD_CELL_TYPE_WALL;
+            snake.field[i][19] = FIELD_CELL_TYPE_WALL;
+            snake.field[i][19] = FIELD_CELL_TYPE_WALL;
+        }
+    }
+    if (snake.score > 15)
+    {
+        for (int i = 17; i < 21; i++)
+        {
+            snake.field[4][i - 10] = FIELD_CELL_TYPE_WALL;
+            snake.field[4][7 + i] = FIELD_CELL_TYPE_WALL;
+            snake.field[21][i - 10] = FIELD_CELL_TYPE_WALL;
+            snake.field[21][7 + i] = FIELD_CELL_TYPE_WALL;
+        }
+    }
 
+}
 void Game::grow_snake(Snake& snake)
 {
     for (int j = 0; j < field_size_y; j++)
@@ -152,6 +172,12 @@ void Game::grow_snake(Snake& snake)
 
 void Game::start_game(Snake& snake)
 {
+    Mix_PauseMusic();
+
+    SDL_RenderClear(gRender);
+    new_game_texture.render(100, 250);
+    SDL_RenderPresent(gRender);
+    SDL_Delay(2000);
     snake.snake_position_x = field_size_x / 2;
     snake.snake_position_y = field_size_y / 2;
     snake.snake_lenght = 4;
@@ -164,15 +190,16 @@ void Game::start_game(Snake& snake)
 
 void Game::finish_game()
 {
+    Mix_PlayMusic(music_game_ower, -1);
     game_pause = false;
     g_over = true;
-    game_over.render(500, 400);
+    game_over_texture.render(100, 300);
     SDL_RenderPresent(gRender);
-    SDL_Delay(2000);
+    SDL_Delay(1000);
 }
+
 void Game::make_move(Snake& snake)
 {
-
     switch (snake.snake_direction)
     {
     case SNAKE_DIRECTION_UP:
@@ -212,6 +239,7 @@ void Game::make_move(Snake& snake)
         case FIELD_CELL_TYPE_APPLE:
             snake.snake_lenght++;
             snake.score++;
+            draw_round(snake);
             grow_snake(snake);
             add_apple(snake);
             break;
@@ -281,7 +309,7 @@ void Game::add_apple(Snake& snake)
     int apple_pos = get_random_empty_cell(snake);
 
     if (apple_pos != -1) {
-        snake.field[apple_pos / field_size_x][apple_pos / field_size_x] = FIELD_CELL_TYPE_APPLE;
+        snake.field[apple_pos / field_size_x][apple_pos % field_size_x] = FIELD_CELL_TYPE_APPLE;
     }
 
 }
@@ -312,12 +340,6 @@ int Game::event(Snake& snake)
             if (game_pause == true)
             {
                 switch (e.key.keysym.sym) {
-                case SDLK_DOWN:
-                    break;
-                case SDLK_a:
-
-                    break;
-
                 case SDLK_RETURN:
                     game_pause = false;
                     break;
@@ -352,7 +374,6 @@ int Game::event(Snake& snake)
                         new_snake_direction = SNAKE_DIRECTION_LEFT;
                     }
                     break;
-
                 case SDLK_F1:
                     game_pause = true;
                     break;
@@ -364,14 +385,11 @@ int Game::event(Snake& snake)
         }
             
 
-        
-
         if (!game_pause) {
             make_move(snake);
         }
 
         draw_field(snake);
-        
 
         if (g_over)
         {
@@ -384,6 +402,7 @@ int Game::event(Snake& snake)
         }
 
        SDL_Delay(100);
+       
     }
 
     quit();

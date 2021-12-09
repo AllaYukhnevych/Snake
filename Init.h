@@ -10,13 +10,14 @@
 
 SDL_Window* window = NULL;
 SDL_Renderer* gRender = NULL;
-Mix_Music* music_game_ower = NULL;
 TTF_Font* gFont = NULL;
-TTF_Font*  gameFont= NULL;
+TTF_Font* gameFont = NULL;
 const int field_size_x = 35;
 const int field_size_y = 25;
 const int cell_size = 32;
 const int text_height = 60;
+const int window_width = field_size_x * cell_size;
+const int window_height = field_size_y * cell_size + text_height;
 
 enum Position 
 {
@@ -36,8 +37,8 @@ int init() {
         return 1;
     }
 
-    window = SDL_CreateWindow("Snake1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        (field_size_x * cell_size), (field_size_y * cell_size+ text_height), SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("Snake", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        window_width, window_height, SDL_WINDOW_SHOWN);
     if (window == NULL) {
         return 1;
     }
@@ -75,5 +76,6 @@ void quit() {
 
     SDL_Quit();
     IMG_Quit();
+    TTF_Quit();
     Mix_Quit();
 }

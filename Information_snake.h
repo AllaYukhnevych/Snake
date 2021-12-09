@@ -9,13 +9,16 @@ private:
     int snake_position_y = field_size_y / 2;
 
     int snake_lenght = 4;
+
     // the initial direction of movement of the snake 
     int snake_direction = SNAKE_DIRECTION_RIGHT;
     int score = 0;
     int field[field_size_y][field_size_x];
 
 public:
+
     Snake() {};
+
     ~Snake() {};
 
     friend class Game;
