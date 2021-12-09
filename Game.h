@@ -1,14 +1,16 @@
 #pragma once
 #include "Information_snake.h"
-
+#include "Menu.h"
 
 class Game {
 
 private:
     Snake snake;
-    bool game_ower = false;
+    bool g_over = false;
+    bool game_pause = false;
 
 public:
+
     Game() {};
 
     Game(Snake snake) { snake = this->snake; };
@@ -17,7 +19,13 @@ public:
 
     void draw_field(Snake& snake);
 
+    void draw_score(Snake& snake);
+
     void grow_snake(Snake& snake);
+
+    void start_game(Snake& snake);
+
+    void finish_game();
 
     void make_move(Snake& snake);
 
@@ -36,7 +44,6 @@ void Game::clear_field(Snake& snake)
             snake.field[j][i] = FIELD_CELL_TYPE_NONE;
         }
     }
-
     for (int i = 0; i < snake.snake_lenght; i++)
     {
         snake.field[snake.snake_position_y ][snake.snake_position_x - i] = snake.snake_lenght - i;
@@ -64,9 +71,8 @@ void Game::clear_field(Snake& snake)
 
 void Game::draw_field(Snake& snake)
 {
-    SDL_RenderPresent(gRender);
     SDL_RenderClear(gRender);
-
+ 
     for (int j = 0; j < field_size_y; j++) {
         for (int i = 0; i < field_size_x; i++) {
             switch (snake.field[j][i])
@@ -81,8 +87,10 @@ void Game::draw_field(Snake& snake)
                 wall_texture.render(i * cell_size, j * cell_size+ text_height);
                 break;
             default://snake
-                if (snake.field[j][i] == snake.snake_lenght) {
+                if (snake.field[j][i] == snake.snake_lenght+1) {
                    head_texture.render((i * cell_size ), (j * cell_size+ text_height));
+
+                  // tail_texture.render(i * cell_size- cell_size*snake.snake_lenght, j *cell_size + text_height);
                     double degrees = 0;
                     switch (snake.snake_direction) {
                     case SNAKE_DIRECTION_UP:
@@ -91,7 +99,8 @@ void Game::draw_field(Snake& snake)
                         break;
                     case SNAKE_DIRECTION_RIGHT:
                         degrees = 90;
-                        head_texture.render((i * cell_size), (j * cell_size+ text_height), NULL, degrees);
+                       head_texture.render((i * cell_size), (j * cell_size+ text_height), NULL, degrees);
+
                         break;
                     case SNAKE_DIRECTION_DOWN:
                         degrees = 180;
@@ -100,6 +109,8 @@ void Game::draw_field(Snake& snake)
                     case SNAKE_DIRECTION_LEFT:
                         degrees = -90;
                         head_texture.render((i * cell_size), (j * cell_size+ text_height), NULL, degrees);
+
+                        //tail_texture.render(i * cell_size , j * cell_size + text_height);
                         break;
                     }
                 }
@@ -111,14 +122,18 @@ void Game::draw_field(Snake& snake)
         }
     }
     //evaluation conclusion 
-    SDL_Color textColor = {0, 102, 0 };
-    text_score.loadFromRenderedText("Score " + std::to_string(snake.score), textColor);
-    text_score.render(950, 20);
+    draw_score(snake);
     textSnake.render(50,20);
     SDL_RenderPresent(gRender);
 }
 
-
+void Game::draw_score(Snake& snake)
+{
+    SDL_Color textColor = { 0, 102, 0 };
+    text_score.loadFromRenderedText("Score " + std::to_string(snake.score), textColor);
+    text_score.render(950, 20);
+}
+   
 
 void Game::grow_snake(Snake& snake)
 {
@@ -135,6 +150,26 @@ void Game::grow_snake(Snake& snake)
 
 }
 
+void Game::start_game(Snake& snake)
+{
+    snake.snake_position_x = field_size_x / 2;
+    snake.snake_position_y = field_size_y / 2;
+    snake.snake_lenght = 4;
+    snake.snake_direction = SNAKE_DIRECTION_RIGHT;
+    snake.score = 0;
+    g_over = false;
+    game_pause = false;
+    clear_field(snake);
+}
+
+void Game::finish_game()
+{
+    game_pause = false;
+    g_over = true;
+    game_over.render(500, 400);
+    SDL_RenderPresent(gRender);
+    SDL_Delay(2000);
+}
 void Game::make_move(Snake& snake)
 {
 
@@ -181,28 +216,25 @@ void Game::make_move(Snake& snake)
             add_apple(snake);
             break;
         default:
-            game_ower = true;
-            game_over.render(500, 400);
-            SDL_RenderPresent(gRender);
-            Mix_PlayMusic(music_game_ower, -1);
-            SDL_Delay(3000);
+            finish_game();
         }
     }
 
-    // snake head 
-    snake.field[snake.snake_position_y][snake.snake_position_x] = snake.snake_lenght + 1;
+    if (!g_over) {
 
-    for (int j = 0; j < field_size_y; j++)
-    {
-        for (int i = 0; i < field_size_x; i++)
+        for (int j = 0; j < field_size_y; j++)
         {
-            if (snake.field[j][i] > FIELD_CELL_TYPE_NONE)
+            for (int i = 0; i < field_size_x; i++)
             {
-                snake.field[j][i]--;
+                if (snake.field[j][i] > FIELD_CELL_TYPE_NONE)
+                {
+                    snake.field[j][i]--;
+                }
             }
         }
-    }
 
+        snake.field[snake.snake_position_y][snake.snake_position_x] = snake.snake_lenght + 1;
+    }
 }
 
 // determine the cell for the apple 
@@ -256,6 +288,7 @@ void Game::add_apple(Snake& snake)
 
 int Game::event(Snake& snake)
 {
+    srand(time(NULL));
     if (init() == 1) {
         return 1;
     }
@@ -263,63 +296,97 @@ int Game::event(Snake& snake)
         quit();
         return 1;
     }
-
-    srand(time(NULL));
     clear_field(snake);
+    
     bool close = true;
     std::vector<int> snake_direction_queue;
     SDL_Event e;
-    int new_snake_direction = snake.snake_direction;
     
     while (close) {
 
-        while (SDL_PollEvent(&e) != NULL) {
+        while (SDL_PollEvent(&e) != NULL)
+        {
             if (e.type == SDL_QUIT) {
                 close = false;
             }
+            if (game_pause == true)
+            {
+                switch (e.key.keysym.sym) {
+                case SDLK_DOWN:
+                    break;
+                case SDLK_a:
 
-            int snake_direction_last = snake_direction_queue.empty() ? snake.snake_direction : snake_direction_queue.at(0);
-            switch (e.key.keysym.sym) {
-            case SDLK_UP:
-                if (snake_direction_last != SNAKE_DIRECTION_DOWN)
-                {
-                    new_snake_direction = SNAKE_DIRECTION_UP;
+                    break;
+
+                case SDLK_RETURN:
+                    game_pause = false;
+                    break;
                 }
-                break;
-            case SDLK_DOWN:
-                if (snake_direction_last != SNAKE_DIRECTION_UP)
-                {
-                    new_snake_direction = SNAKE_DIRECTION_DOWN;
+            }
+            else
+            {
+                int new_snake_direction = snake.snake_direction;
+                int snake_direction_last = snake_direction_queue.empty() ? snake.snake_direction : snake_direction_queue.at(0);
+                switch (e.key.keysym.sym) {
+                case SDLK_UP:
+                    if (snake_direction_last != SNAKE_DIRECTION_DOWN)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_UP;
+                    }
+                    break;
+                case SDLK_DOWN:
+                    if (snake_direction_last != SNAKE_DIRECTION_UP)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_DOWN;
+                    }
+                    break;
+                case SDLK_RIGHT:
+                    if (snake_direction_last != SNAKE_DIRECTION_LEFT)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_RIGHT;
+                    }
+                    break;
+                case SDLK_LEFT:
+                    if (snake_direction_last != SNAKE_DIRECTION_RIGHT)
+                    {
+                        new_snake_direction = SNAKE_DIRECTION_LEFT;
+                    }
+                    break;
+
+                case SDLK_F1:
+                    game_pause = true;
+                    break;
+
                 }
-                break;
-            case SDLK_RIGHT:
-                if (snake_direction_last != SNAKE_DIRECTION_LEFT)
-                {
-                    new_snake_direction = SNAKE_DIRECTION_RIGHT;
-                }
-                break;
-            case SDLK_LEFT:
-                if (snake_direction_last != SNAKE_DIRECTION_RIGHT)
-                {
-                    new_snake_direction = SNAKE_DIRECTION_LEFT;
-                }
-                break;
+
+                snake.snake_direction = new_snake_direction;
             }
         }
-        snake.snake_direction = new_snake_direction;
+            
 
-        if (game_ower)
-        {
-            quit();
+        
+
+        if (!game_pause) {
+            make_move(snake);
         }
 
-        make_move(snake);
-
         draw_field(snake);
+        
 
-        SDL_Delay(100);
-       
+        if (g_over)
+        {
+            finish_game();
+            start_game(snake);
+        }
+
+        if (game_pause) {
+            draw_menu();
+        }
+
+       SDL_Delay(100);
     }
 
     quit();
+    return 0;
 }
+

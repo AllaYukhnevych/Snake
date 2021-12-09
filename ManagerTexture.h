@@ -10,6 +10,9 @@ LTexture tail_texture;
 LTexture textSnake;
 LTexture text_score;
 LTexture game_over;
+LTexture menu_texture;
+
+Mix_Music* music_game_ower = NULL;
 
 bool loadMedia()
 {
@@ -41,7 +44,19 @@ bool loadMedia()
         success = false;
     }
 
+    if (!menu_texture.loadFromFile("menu.png"))
+    {
+        printf("Failed to load arrow texture!\n");
+        success = false;
+    }
+
     if (!tail_texture.loadFromFile("snake_tail.png"))
+    {
+        printf("Failed to load arrow texture!\n");
+        success = false;
+    }
+
+    if (!menu_texture.loadFromFile("pause.png"))
     {
         printf("Failed to load arrow texture!\n");
         success = false;
@@ -55,7 +70,7 @@ bool loadMedia()
     }
 
 
-    gFont = TTF_OpenFont("SeratUltra-1GE24.ttf", 30);
+ gFont = TTF_OpenFont("SeratUltra-1GE24.ttf", 30);
     if (gFont == NULL)
     {
         printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
@@ -72,8 +87,16 @@ bool loadMedia()
 
     }
 
-    SDL_Color textColor = { 255, 0, 0 };
-    game_over.loadFromRenderedText("GAME OVER", textColor);
+   SDL_Color textColor = { 255, 0, 0 };
+    if (!game_over.loadFromRenderedText("GAME OVER", textColor))
+    {
+      
+       printf("Failed to render text texture!\n");
+        success = false;
+    }
+
+
+
     return success;
 }
 
