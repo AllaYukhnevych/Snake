@@ -8,11 +8,7 @@ loss notification accompanied by appropriate music. With each interaction with t
 Scores are displayed in the upper right corner. If the score is higher than 7 and 15, an additional wall appears on the playing field.
 
 # Instructions to run
-You will need SDL 2 libraries on your system to successfully compile and run this project.
-Download the latest version of SDL2-devel-2.0 from the official SDL page and unzip the contents of the internal folder in the easy-access directory.
-Also download the latest versions of SDL2_ttf-devel-2.0, SDL2_image-devel 2.0, SDL2_mixer-devel-2.0.5 from SDL_ttf 2.0, SDL_image 2.0, SDL_mixer 2.0 unpack
-and combine the contents of the internal folders with those previously created for the base SDL.
-The game starts when you run the main exe file.
+You must download the repository archive to successfully compile and run this project. Unzip the folder and run the main exe file (Snake.exe) 
 
 # Instructions for management
 When you press the arrow keys, the snake turns in the appropriate direction. When a snake eats an apple, it grows.
