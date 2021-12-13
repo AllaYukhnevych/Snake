@@ -69,7 +69,7 @@ bool loadMedia()
         success = false;
     }
 
-    gFont = TTF_OpenFont("SeratUltra-1GE24.ttf", 30);
+    gFont = TTF_OpenFont("image/SeratUltra-1GE24.ttf", 30);
     if (gFont == NULL)
     {
         printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
